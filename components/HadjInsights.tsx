@@ -1,95 +1,91 @@
-import React, { useState, useEffect } from 'react';
-// Fix: added .ts extension
+import React, { useEffect, useState } from 'react';
+import { Investment, HadjAnalysis } from '../types.ts';
+import { useApi } from '../contexts/ApiContext.tsx';
 import { useFinancialsState } from '../hooks/useFinancials.ts';
-import { getDashboardInsights } from '../services/geminiService.ts';
-// Fix: added .ts extension
-import { DashboardInsight } from '../types.ts';
+import { analyzeInvestment } from '../services/geminiService.ts';
 import Card from './shared/Card.tsx';
 import Spinner from './shared/Spinner.tsx';
 
-const Insight: React.FC<{ insight: DashboardInsight }> = ({ insight }) => {
-    const typeClasses = {
-        info: {
-            icon: 'ℹ️',
-            bg: 'bg-blue-50 dark:bg-blue-900/30',
-            text: 'text-blue-800 dark:text-blue-200'
-        },
-        warning: {
-            icon: '⚠️',
-            bg: 'bg-yellow-50 dark:bg-yellow-900/30',
-            text: 'text-yellow-800 dark:text-yellow-200'
-        },
-        success: {
-            icon: '✅',
-            bg: 'bg-green-50 dark:bg-green-900/30',
-            text: 'text-green-800 dark:text-green-200'
-        },
-    };
+interface HadjInsightsProps {
+    investment: Investment;
+    onClose: () => void;
+}
 
-    const classes = typeClasses[insight.type] || typeClasses.info;
-
-    return (
-        <div className={`p-4 rounded-lg flex items-start gap-4 ${classes.bg}`}>
-            <span className="text-xl mt-1">{classes.icon}</span>
-            <div>
-                <h4 className={`font-bold ${classes.text}`}>{insight.title}</h4>
-                <p className={`text-sm ${classes.text}`}>{insight.suggestion}</p>
-            </div>
-        </div>
-    );
-};
-
-const HadjInsights: React.FC = () => {
+const HadjInsights: React.FC<HadjInsightsProps> = ({ investment, onClose }) => {
+    const { ai, isApiAvailable, openApiKeyModal } = useApi();
     const financials = useFinancialsState();
-    const [insights, setInsights] = useState<DashboardInsight[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [analysis, setAnalysis] = useState<HadjAnalysis | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchInsights = async () => {
+        if (!isApiAvailable) {
+            return;
+        }
+
+        const getAnalysis = async () => {
+            if (!ai || !financials) {
+                setError("Les données financières ne sont pas disponibles.");
+                return;
+            }
             setIsLoading(true);
-            setError('');
+            setError(null);
+            setAnalysis(null);
             try {
-                const results = await getDashboardInsights(financials);
-                setInsights(results);
-            } catch (e) {
-                setError("Erreur lors de la récupération des aperçus de l'IA.");
-                console.error(e);
+                const result = await analyzeInvestment(ai, investment, financials);
+                setAnalysis(result);
+            } catch (err) {
+                setError("Une erreur est survenue lors de l'analyse.");
+                console.error(err);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchInsights();
-    }, [financials]);
-
-    const renderContent = () => {
-        if (isLoading) {
-            return (
-                <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
-                    <Spinner />
-                    <p>Hadj analyse votre situation...</p>
-                </div>
-            );
-        }
-        if (error) {
-            return <p className="text-red-500 text-center">{error}</p>;
-        }
-        if (insights.length === 0) {
-            return <p className="text-gray-500 dark:text-gray-400 text-center">Aucun aperçu disponible pour le moment.</p>;
-        }
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {insights.map((insight, index) => (
-                    <Insight key={index} insight={insight} />
-                ))}
-            </div>
-        );
-    };
+        getAnalysis();
+    }, [investment, ai, financials, isApiAvailable]);
 
     return (
-        <Card title="Aperçus de Hadj">
-            {renderContent()}
+        <Card title={`Analyse pour: ${investment.name}`} className="relative">
+            <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-2xl font-bold">&times;</button>
+            <div className="p-2">
+                {!isApiAvailable ? (
+                    <div className="text-center p-8">
+                        <p className="text-yellow-600 dark:text-yellow-400 mb-4">Le service IA n'est pas configuré pour l'analyse.</p>
+                        <button onClick={openApiKeyModal} className="bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700">
+                            Configurer la clé API
+                        </button>
+                    </div>
+                ) : isLoading ? (
+                    <div className="flex justify-center items-center h-48"><Spinner /> <span className="ml-2">Analyse en cours...</span></div>
+                ) : error ? (
+                    <p className="text-red-500 text-center p-4">{error}</p>
+                ) : analysis ? (
+                    <div className="space-y-4">
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Recommandation</h4>
+                            <p className={`text-xl font-bold ${analysis.isRecommended ? 'text-green-500' : 'text-red-500'}`}>{analysis.recommendation}</p>
+                        </div>
+                         <hr className="dark:border-gray-700"/>
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Rentabilité</h4>
+                            <p className="text-sm">{analysis.profitability}</p>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Risque</h4>
+                            <p className="text-sm">{analysis.risk}</p>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-gray-600 dark:text-gray-400">Conformité Charia</h4>
+                             <ul className="list-disc list-inside text-sm space-y-1 mt-1">
+                                <li><strong>Riba-Free:</strong> {analysis.hadjRule.ribaFree}</li>
+                                <li><strong>Dette/Capitaux:</strong> {analysis.hadjRule.debtToEquity}</li>
+                                <li><strong>ROI:</strong> {analysis.hadjRule.returnOnInvestment}</li>
+                            </ul>
+                        </div>
+                    </div>
+                ) : null}
+            </div>
         </Card>
     );
 };

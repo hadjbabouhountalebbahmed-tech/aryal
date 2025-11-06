@@ -1,327 +1,298 @@
-import React, { useState, useMemo } from 'react';
-// Fix: added .ts extension
-import { useFinancialsState, useFinancialsActions, useCategories } from '../hooks/useFinancials.ts';
-// Fix: added .ts extension
+
+import React, { useState, useEffect } from 'react';
+import { useFinancialsState, useFinancialsUpdater } from '../hooks/useFinancials.ts';
 import { Expense, RecurringExpense } from '../types.ts';
+import { expenseCategories } from '../data/categories.ts';
 import Card from './shared/Card.tsx';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import FormModal from './shared/FormModal.tsx';
 import { useNotifier } from '../contexts/NotificationContext.tsx';
 
-const EditExpenseModal: React.FC<{ expense: Expense | null, onClose: () => void }> = ({ expense, onClose }) => {
-    const { addExpense, updateExpense } = useFinancialsActions();
-    const { getExpenseCategories } = useCategories();
-    const notifier = useNotifier();
-    const isEditing = !!expense;
-
-    const [category, setCategory] = useState(expense?.category || '');
-    const [description, setDescription] = useState(expense?.description || '');
-    const [amount, setAmount] = useState(expense?.amount.toString() || '');
-    const [date, setDate] = useState(expense?.date || new Date().toISOString().split('T')[0]);
-
-    const expenseCategoriesList = getExpenseCategories();
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const expenseData = { category, description, amount: parseFloat(amount), date };
-        if (isEditing && expense) {
-            updateExpense({ ...expenseData, id: expense.id });
-            notifier.success(`Dépense "${description}" mise à jour.`);
-        } else {
-            addExpense(expenseData);
-            notifier.success(`Dépense "${description}" ajoutée.`);
-        }
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 animate-scale-in" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold mb-4">{isEditing ? 'Modifier' : 'Ajouter'} une Dépense</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                     <div>
-                        <label className="block text-sm font-medium">Catégorie</label>
-                        <input 
-                            type="text" 
-                            value={category} 
-                            onChange={e => setCategory(e.target.value)} 
-                            required 
-                            className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
-                            list="expense-categories-list"
-                        />
-                         <datalist id="expense-categories-list">
-                            {expenseCategoriesList.map(cat => <option key={cat} value={cat} />)}
-                        </datalist>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Description</label>
-                        <input type="text" value={description} onChange={e => setDescription(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Montant</label>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Date</label>
-                        <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                    </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
-                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">Annuler</button>
-                        <button type="submit" className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700">Sauvegarder</button>
-                    </div>
-                </form>
-            </div>
-             <style>{`@keyframes fade-in{from{opacity:0}to{opacity:1}} .animate-fade-in{animation:fade-in .2s ease-out forwards} @keyframes scale-in{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}} .animate-scale-in{animation:scale-in .2s ease-out forwards}`}</style>
-        </div>
-    );
-};
-
-const EditRecurringExpenseModal: React.FC<{ expense: RecurringExpense | null, onClose: () => void }> = ({ expense, onClose }) => {
-    const { addRecurringExpense, updateRecurringExpense } = useFinancialsActions();
-    const { getExpenseCategories } = useCategories();
-    const notifier = useNotifier();
-    const isEditing = !!expense;
-
-    const [description, setDescription] = useState(expense?.description || '');
-    const [amount, setAmount] = useState(expense?.amount.toString() || '');
-    const [category, setCategory] = useState(expense?.category || '');
-    const [dayOfMonth, setDayOfMonth] = useState(expense?.dayOfMonth?.toString() || '1');
-    const [startDate, setStartDate] = useState(expense?.startDate || new Date().toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(expense?.endDate || '');
-
-    const expenseCategoriesList = getExpenseCategories();
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const expenseData = {
-            description,
-            amount: parseFloat(amount),
-            category,
-            recurrence: 'monthly' as 'monthly',
-            dayOfMonth: parseInt(dayOfMonth),
-            startDate,
-            endDate: endDate || undefined
-        };
-
-        if (isEditing && expense) {
-            updateRecurringExpense({ ...expenseData, id: expense.id, lastProcessedDate: expense.lastProcessedDate });
-            notifier.success(`Dépense récurrente "${description}" mise à jour.`);
-        } else {
-            addRecurringExpense(expenseData);
-            notifier.success(`Dépense récurrente "${description}" ajoutée.`);
-        }
-        onClose();
-    };
-
-    return (
-         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 animate-scale-in" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold mb-4">{isEditing ? 'Modifier' : 'Ajouter'} une Dépense Récurrente</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                         <div>
-                            <label className="block text-sm font-medium">Description</label>
-                            <input type="text" value={description} onChange={e => setDescription(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Montant</label>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium">Catégorie</label>
-                            <input 
-                                type="text" 
-                                value={category} 
-                                onChange={e => setCategory(e.target.value)} 
-                                required 
-                                className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
-                                list="expense-categories-list"
-                            />
-                            <datalist id="expense-categories-list">
-                                {expenseCategoriesList.map(cat => <option key={cat} value={cat} />)}
-                            </datalist>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Jour du mois</label>
-                            <input type="number" min="1" max="31" value={dayOfMonth} onChange={e => setDayOfMonth(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium">Date de début</label>
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium">Date de fin (optionnel)</label>
-                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"/>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
-                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500">Annuler</button>
-                        <button type="submit" className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700">Sauvegarder</button>
-                    </div>
-                </form>
-            </div>
-             <style>{`@keyframes fade-in{from{opacity:0}to{opacity:1}} .animate-fade-in{animation:fade-in .2s ease-out forwards} @keyframes scale-in{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}} .animate-scale-in{animation:scale-in .2s ease-out forwards}`}</style>
-        </div>
-    );
-};
-
-
-type ModalState = 
-    | { type: 'CLOSED' }
-    | { type: 'ADD_EXPENSE' }
-    | { type: 'EDIT_EXPENSE', data: Expense }
-    | { type: 'ADD_RECURRING' }
-    | { type: 'EDIT_RECURRING', data: RecurringExpense };
-
 const Expenses: React.FC = () => {
-    const { expenses, recurringExpenses, settings } = useFinancialsState();
-    const { removeExpense, removeRecurringExpense } = useFinancialsActions();
+    const financials = useFinancialsState();
+    const updateFinancials = useFinancialsUpdater();
     const notifier = useNotifier();
-    const [modal, setModal] = useState<ModalState>({ type: 'CLOSED' });
 
-    const { cadToDzdRate } = settings;
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<Expense | RecurringExpense | null>(null);
 
-    const totalExpenses = useMemo(() => expenses.reduce((sum, item) => sum + item.amount, 0), [expenses]);
+    const handleOpenAddModal = () => {
+        setEditingItem(null);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEditModal = (item: Expense | RecurringExpense) => {
+        setEditingItem(item);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingItem(null);
+    };
     
-    const expenseByCategory = useMemo(() => {
-        const grouped: { [key: string]: number } = {};
-        expenses.forEach(expense => {
-            if (!grouped[expense.category]) {
-                grouped[expense.category] = 0;
+    const handleDelete = async (itemToDelete: Expense | RecurringExpense) => {
+        if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) return;
+
+        let newExpenses = financials.expenses;
+        let newRecurringExpenses = financials.recurringExpenses;
+
+        if ('recurrence' in itemToDelete) {
+             newRecurringExpenses = financials.recurringExpenses.filter(item => item.id !== itemToDelete.id);
+        } else {
+            newExpenses = financials.expenses.filter(item => item.id !== itemToDelete.id);
+        }
+        
+        await updateFinancials({ ...financials, expenses: newExpenses, recurringExpenses: newRecurringExpenses });
+        notifier.success("Dépense supprimée.");
+    };
+
+    const handleSubmit = async (formData: any) => {
+        const isRecurring = !!formData.isRecurring;
+        const wasRecurring = editingItem ? 'recurrence' in editingItem : false;
+        
+        let newExpenses = [...financials.expenses];
+        let newRecurringExpenses = [...financials.recurringExpenses];
+        
+        if (editingItem) { // --- UPDATE LOGIC ---
+            if (wasRecurring && !isRecurring) { // Convert Recurring -> Single
+                newRecurringExpenses = newRecurringExpenses.filter(i => i.id !== editingItem.id);
+                const newItem: Expense = {
+                    id: editingItem.id,
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    date: formData.startDate,
+                };
+                newExpenses.push(newItem);
+                notifier.success("Dépense convertie en ponctuelle.");
+            } else if (!wasRecurring && isRecurring) { // Convert Single -> Recurring
+                newExpenses = newExpenses.filter(i => i.id !== editingItem.id);
+                const startDate = formData.date;
+                const newItem: RecurringExpense = {
+                    id: editingItem.id,
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    recurrence: 'monthly',
+                    dayOfMonth: new Date(startDate).getDate(),
+                    startDate: startDate,
+                    endDate: formData.endDate || undefined,
+                    lastProcessedDate: startDate,
+                };
+                newRecurringExpenses.push(newItem);
+                notifier.success("Dépense convertie en récurrente.");
+            } else if (isRecurring) { // Update Recurring
+                const updatedItem: RecurringExpense = {
+                    ...(editingItem as RecurringExpense),
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    startDate: formData.startDate,
+                    endDate: formData.endDate || undefined,
+                    dayOfMonth: new Date(formData.startDate).getDate(),
+                };
+                newRecurringExpenses = newRecurringExpenses.map(i => i.id === updatedItem.id ? updatedItem : i);
+                notifier.success("Dépense récurrente mise à jour.");
+            } else { // Update Single
+                const updatedItem: Expense = {
+                    ...(editingItem as Expense),
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    date: formData.date,
+                };
+                newExpenses = newExpenses.map(i => i.id === updatedItem.id ? updatedItem : i);
+                notifier.success("Dépense mise à jour.");
             }
-            grouped[expense.category] += expense.amount;
-        });
-        return Object.entries(grouped).map(([name, value]) => ({ name, value }));
-    }, [expenses]);
-    
-    const COLORS = ['#058778', '#12d1b2', '#5ef7d8', '#92fae6', '#c6fef3', '#07aa94', '#f59e0b'];
-
-    const handleCloseModal = () => setModal({ type: 'CLOSED' });
-
-    const handleRemoveExpense = (exp: Expense) => {
-         if (window.confirm(`Êtes-vous sûr de vouloir supprimer la dépense "${exp.description}" ?`)) {
-            removeExpense(exp.id);
-            notifier.info(`Dépense "${exp.description}" supprimée.`);
+        } else { // --- ADD LOGIC ---
+             if (isRecurring) {
+                const startDate = formData.date;
+                const newItem: RecurringExpense = {
+                    id: crypto.randomUUID(),
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    recurrence: 'monthly',
+                    dayOfMonth: new Date(startDate).getDate(),
+                    startDate: startDate,
+                    endDate: formData.endDate || undefined,
+                    lastProcessedDate: startDate,
+                };
+                newRecurringExpenses.push(newItem);
+                notifier.success("Dépense récurrente ajoutée.");
+            } else {
+                const newItem: Expense = {
+                    id: crypto.randomUUID(),
+                    description: formData.description,
+                    amount: parseFloat(formData.amount) || 0,
+                    category: formData.category,
+                    date: formData.date,
+                };
+                newExpenses.push(newItem);
+                notifier.success("Dépense ajoutée.");
+            }
         }
+        await updateFinancials({ ...financials, expenses: newExpenses, recurringExpenses: newRecurringExpenses });
     };
-    
-    const handleRemoveRecurring = (rec: RecurringExpense) => {
-        if (window.confirm(`Êtes-vous sûr de vouloir supprimer la dépense récurrente "${rec.description}" ?`)) {
-            removeRecurringExpense(rec.id);
-            notifier.info(`Dépense récurrente "${rec.description}" supprimée.`);
-        }
-    };
-    
-    const EmptyState = () => (
-         <div className="text-center p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 12H6" />
-            </svg>
-            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Aucune dépense enregistrée</h3>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Commencez par ajouter votre première dépense.</p>
-        </div>
-    );
 
     return (
-        <div className="space-y-6">
-            {(modal.type === 'ADD_EXPENSE' || modal.type === 'EDIT_EXPENSE') && (
-                <EditExpenseModal 
-                    expense={modal.type === 'EDIT_EXPENSE' ? modal.data : null}
-                    onClose={handleCloseModal}
-                />
-            )}
-             {(modal.type === 'ADD_RECURRING' || modal.type === 'EDIT_RECURRING') && (
-                <EditRecurringExpenseModal 
-                    expense={modal.type === 'EDIT_RECURRING' ? modal.data : null}
-                    onClose={handleCloseModal}
-                />
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-2">
-                    <Card title="Total des Dépenses">
-                        <p className="text-3xl font-bold text-red-500">{totalExpenses.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            ≈ {(totalExpenses * cadToDzdRate).toLocaleString('fr-DZ', { style: 'currency', currency: 'DZD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </p>
-                    </Card>
-                </div>
-                 <div className="lg:col-span-3">
-                     <Card title="Répartition des Dépenses par Catégorie">
-                         <ResponsiveContainer width="100%" height={200}>
-                             <PieChart>
-                                <Pie data={expenseByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                     {expenseByCategory.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                </Pie>
-                                <Tooltip formatter={(value: number) => value.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}/>
-                                <Legend />
-                            </PieChart>
-                         </ResponsiveContainer>
-                     </Card>
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <Card title="Dépenses Récurrentes">
-                    <button 
-                        onClick={() => setModal({ type: 'ADD_RECURRING' })} 
-                        className="w-full mb-4 py-2 bg-secondary-600 text-white rounded-lg hover:bg-secondary-700 transition-colors"
-                    >
-                        Ajouter une dépense récurrente
+        <>
+            <Card title="Gestion des Dépenses">
+                <div className="flex justify-end mb-4">
+                    <button onClick={handleOpenAddModal} className="bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700">
+                        Ajouter une Dépense
                     </button>
-                     <div className="space-y-3 max-h-[40vh] overflow-y-auto">
-                        {recurringExpenses.map(rec => (
-                            <div key={rec.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                <div>
-                                    <p className="font-semibold">{rec.description}</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {rec.amount.toLocaleString('fr-CA', {currency: 'CAD', style: 'currency'})} chaque {rec.dayOfMonth} du mois
-                                    </p>
-                                </div>
-                                <div className="flex gap-2">
-                                     <button onClick={() => setModal({ type: 'EDIT_RECURRING', data: rec })} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" aria-label="Modifier">✏️</button>
-                                     <button onClick={() => handleRemoveRecurring(rec)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" aria-label="Supprimer">🗑️</button>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
-                </Card>
+                </div>
 
-                <Card title="Toutes les Transactions de Dépenses">
-                    <button 
-                        onClick={() => setModal({ type: 'ADD_EXPENSE' })} 
-                        className="w-full mb-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                    >
-                        Ajouter une dépense unique
-                    </button>
-                    <div className="space-y-3 max-h-[40vh] overflow-y-auto">
-                        {expenses.length > 0 ? expenses.map(exp => (
-                            <div key={exp.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm">
-                                <div className="flex-1 mb-2 md:mb-0">
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-bold text-lg text-primary-800 dark:text-primary-200">{exp.description}</p>
-                                        {exp.sourceRecurringId && <span title="Généré automatiquement">🔄</span>}
-                                    </div>
-                                    <div className="flex flex-wrap text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                        <span className="mr-4"><strong>Montant:</strong> {exp.amount.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</span>
-                                        <span className="mr-4"><strong>Catégorie:</strong> {exp.category}</span>
-                                        <span><strong>Date:</strong> {new Date(exp.date).toLocaleDateString('fr-CA')}</span>
-                                    </div>
-                                </div>
-                                {!exp.sourceRecurringId && (
-                                <div className="flex gap-2 self-end md:self-center">
-                                    <button onClick={() => setModal({ type: 'EDIT_EXPENSE', data: exp })} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" aria-label="Modifier">✏️</button>
-                                    <button onClick={() => handleRemoveExpense(exp)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" aria-label="Supprimer">🗑️</button>
-                                </div>
-                                )}
-                            </div>
-                        )) : (
-                            <EmptyState />
-                        )}
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2 border-b dark:border-gray-700 pb-1">Dépenses Récurrentes</h4>
+                        <div className="space-y-3">
+                            {financials.recurringExpenses.length > 0 ? (
+                                financials.recurringExpenses.map(item => <RecurringExpenseItem key={item.id} item={item} onEdit={handleOpenEditModal} onDelete={handleDelete} />)
+                            ) : (
+                                <p className="text-center text-gray-500 py-4">Aucune dépense récurrente.</p>
+                            )}
+                        </div>
                     </div>
-                </Card>
-            </div>
-        </div>
+
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2 border-b dark:border-gray-700 pb-1">Dépenses Ponctuelles</h4>
+                        <div className="space-y-3">
+                            {financials.expenses.length > 0 ? (
+                                financials.expenses.map(item => <ExpenseItem key={item.id} item={item} onEdit={handleOpenEditModal} onDelete={handleDelete} />)
+                            ) : (
+                                <p className="text-center text-gray-500 py-4">Aucune dépense ponctuelle pour ce mois.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </Card>
+            {isModalOpen && 
+                <ExpenseFormModal 
+                    isOpen={isModalOpen} 
+                    onClose={handleCloseModal} 
+                    onSubmit={handleSubmit} 
+                    initialData={editingItem}
+                />
+            }
+        </>
     );
 };
+
+// --- Child Components for Rendering Items ---
+
+const ExpenseItem: React.FC<{item: Expense, onEdit: (i: Expense) => void, onDelete: (i: Expense) => void}> = ({ item, onEdit, onDelete }) => (
+    <div className="p-3 border rounded-lg dark:border-gray-700 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <div className="flex-grow">
+            <span className="font-semibold">{item.description}</span>
+            <p className="text-sm text-gray-500">{item.category}</p>
+        </div>
+        <div className="flex items-center gap-4 w-full sm:w-auto justify-between">
+            <span className="font-bold text-red-500 text-lg">{item.amount.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</span>
+            <div className="flex-shrink-0 flex gap-1">
+                <button onClick={() => onEdit(item)} className="p-1 text-gray-500 hover:text-blue-500">✏️</button>
+                <button onClick={() => onDelete(item)} className="p-1 text-gray-500 hover:text-red-500">🗑️</button>
+            </div>
+        </div>
+    </div>
+);
+
+const RecurringExpenseItem: React.FC<{item: RecurringExpense, onEdit: (i: RecurringExpense) => void, onDelete: (i: RecurringExpense) => void}> = ({ item, onEdit, onDelete }) => (
+    <div className="p-3 border rounded-lg dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <div className="flex-grow">
+            <span className="font-semibold">{item.description}</span>
+            <p className="text-sm text-gray-500">{item.category} (Le {item.dayOfMonth} de chaque mois)</p>
+        </div>
+        <div className="flex items-center gap-4 w-full sm:w-auto justify-between">
+            <span className="font-bold text-red-500 text-lg">{item.amount.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</span>
+            <div className="flex-shrink-0 flex gap-1">
+                <button onClick={() => onEdit(item)} className="p-1 text-gray-500 hover:text-blue-500">✏️</button>
+                <button onClick={() => onDelete(item)} className="p-1 text-gray-500 hover:text-red-500">🗑️</button>
+            </div>
+        </div>
+    </div>
+);
+
+// --- Custom Form Modal for Expenses ---
+interface ExpenseFormModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (data: any) => Promise<void>;
+    initialData: Expense | RecurringExpense | null;
+}
+
+const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
+    const isEditingRecurring = initialData ? 'recurrence' in initialData : false;
+    const [formData, setFormData] = useState({
+        description: initialData?.description || '',
+        category: initialData?.category || '',
+        amount: initialData?.amount.toString() || '',
+        date: (initialData && !isEditingRecurring) ? (initialData as Expense).date : new Date().toISOString().split('T')[0],
+        isRecurring: isEditingRecurring,
+        startDate: (initialData && isEditingRecurring) ? (initialData as RecurringExpense).startDate : new Date().toISOString().split('T')[0],
+        endDate: (initialData && isEditingRecurring) ? (initialData as RecurringExpense).endDate || '' : '',
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type, checked } = e.target as HTMLInputElement;
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await onSubmit(formData);
+        onClose();
+    };
+
+    const title = initialData ? "Modifier la Dépense" : "Ajouter une Dépense";
+    const dateFieldLabel = formData.isRecurring ? "Date de début" : "Date";
+    const dateFieldName = formData.isRecurring ? "startDate" : "date";
+    const dateFieldValue = formData.isRecurring ? formData.startDate : formData.date;
+
+    return (
+        <FormModal isOpen={isOpen} onClose={onClose} onSubmit={handleFormSubmit} title={title} initialData={null} fields={[]}>
+             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                    <label className="block text-sm font-medium mb-1">Description</label>
+                    <input name="description" value={formData.description} onChange={handleChange} required className="w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium mb-1">Catégorie</label>
+                    <select name="category" value={formData.category} onChange={handleChange} required className="w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">Sélectionner...</option>
+                        {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium mb-1">Montant</label>
+                    <input name="amount" type="number" min="0" step="0.01" value={formData.amount} onChange={handleChange} required className="w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium mb-1">{dateFieldLabel}</label>
+                    <input name={dateFieldName} type="date" value={dateFieldValue} onChange={handleChange} required className="w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <input id="isRecurring" name="isRecurring" type="checkbox" checked={formData.isRecurring} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    <label htmlFor="isRecurring" className="text-sm font-medium">Dépense récurrente</label>
+                </div>
+                {formData.isRecurring && (
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Date de fin (optionnel)</label>
+                        <input name="endDate" type="date" value={formData.endDate} onChange={handleChange} className="w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
+                    </div>
+                )}
+            </div>
+        </FormModal>
+    );
+};
+
+// We need a custom implementation of FormModal's body for conditional logic,
+// so we pass children to a modified base FormModal
+declare module './shared/FormModal.tsx' {
+    interface FormModalProps<T> {
+        children?: React.ReactNode;
+    }
+}
 
 export default Expenses;

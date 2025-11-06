@@ -1,6 +1,6 @@
 import React from 'react';
-import { useNotificationContext } from '../../contexts/NotificationContext';
-import Toast from './Toast';
+import { useNotificationContext } from '../../contexts/NotificationContext.tsx';
+import Toast from './Toast.tsx';
 
 const ToastContainer: React.FC = () => {
   const { notifications, removeNotification } = useNotificationContext();

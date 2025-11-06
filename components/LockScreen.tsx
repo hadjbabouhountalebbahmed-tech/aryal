@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNotifier } from '../contexts/NotificationContext';
-import Card from './shared/Card';
-import Spinner from './shared/Spinner';
+// Fix: added .tsx extension
+import { useAuth } from '../contexts/AuthContext.tsx';
+// Fix: added .tsx extension
+import { useNotifier } from '../contexts/NotificationContext.tsx';
+// Fix: added .tsx extension
+import Card from './shared/Card.tsx';
+// Fix: added .tsx extension
+import Spinner from './shared/Spinner.tsx';
 
 const ResetPasswordModal: React.FC<{
     isOpen: boolean;
@@ -113,7 +117,7 @@ const LockScreen: React.FC = () => {
     };
     
     return (
-         <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
+         <div className="flex justify-center items-center h-full bg-gray-100 dark:bg-gray-900 p-4 overflow-y-auto">
              <ResetPasswordModal isOpen={isResetModalOpen} onClose={() => setIsResetModalOpen(false)} />
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">

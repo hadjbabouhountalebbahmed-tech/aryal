@@ -2,10 +2,6 @@ import { GoogleGenAI, Type, Chat } from "@google/genai";
 // Fix: added .ts extension
 import { Investment, Financials, HadjAnalysis, DashboardInsight } from '../types.ts';
 
-// IMPORTANT: The API key is now securely managed via environment variables.
-// Do not hardcode API keys in the source code.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const hadjAnalysisSchema = {
     type: Type.OBJECT,
     properties: {
@@ -57,7 +53,10 @@ const dashboardInsightsSchema = {
     required: ['insights']
 };
 
-export const analyzeInvestment = async (investment: Investment, financials: Financials): Promise<HadjAnalysis | null> => {
+export const analyzeInvestment = async (ai: GoogleGenAI, investment: Investment, financials: Financials): Promise<HadjAnalysis | null> => {
+    if (!ai) {
+        throw new Error("Le client AI n'est pas initialisé.");
+    }
     
     const model = 'gemini-2.5-flash';
 
@@ -94,6 +93,7 @@ export const analyzeInvestment = async (investment: Investment, financials: Fina
     try {
         const response = await ai.models.generateContent({
             model: model,
+            // Fix: Pass prompt as a direct string for `contents` as per guidelines.
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -107,11 +107,14 @@ export const analyzeInvestment = async (investment: Investment, financials: Fina
 
     } catch (error) {
         console.error("Error analyzing investment with Gemini:", error);
-        return null;
+        throw error;
     }
 };
 
-export const getDashboardInsights = async (financials: Financials): Promise<DashboardInsight[]> => {
+export const getDashboardInsights = async (ai: GoogleGenAI, financials: Financials): Promise<DashboardInsight[]> => {
+    if (!ai) {
+        throw new Error("Le client AI n'est pas initialisé.");
+    }
     const model = 'gemini-2.5-flash';
 
     const totalIncome = financials.incomes.reduce((sum, item) => sum + item.amount, 0);
@@ -146,6 +149,7 @@ export const getDashboardInsights = async (financials: Financials): Promise<Dash
     try {
         const response = await ai.models.generateContent({
             model: model,
+            // Fix: Pass prompt as a direct string for `contents` as per guidelines.
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -159,11 +163,14 @@ export const getDashboardInsights = async (financials: Financials): Promise<Dash
 
     } catch (error) {
         console.error("Error getting dashboard insights from Gemini:", error);
-        return [];
+        throw error;
     }
 }
 
-export const createChatSession = (systemInstruction: string): Chat => {
+export const createChatSession = (ai: GoogleGenAI, systemInstruction: string): Chat => {
+     if (!ai) {
+        throw new Error("Le client AI n'est pas initialisé.");
+    }
      return ai.chats.create({
         model: 'gemini-2.5-pro',
         config: {

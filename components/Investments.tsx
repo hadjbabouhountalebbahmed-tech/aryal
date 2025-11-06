@@ -1,203 +1,125 @@
+
 import React, { useState } from 'react';
-// Fix: added .ts extension
-import { useFinancialsState, useFinancialsActions, useCategories } from '../hooks/useFinancials.ts';
-import { analyzeInvestment } from '../services/geminiService.ts';
-// Fix: added .ts extension
-import { Investment, HadjAnalysis, InvestmentCountry } from '../types.ts';
+import { useFinancialsState, useFinancialsUpdater } from '../hooks/useFinancials.ts';
 import Card from './shared/Card.tsx';
-import Spinner from './shared/Spinner.tsx';
+import HadjInsights from './HadjInsights.tsx';
+import FormModal from './shared/FormModal.tsx';
+import { Investment, FormFieldConfig, InvestmentCountry, InvestmentRiskLevel } from '../types.ts';
+import { investmentSectors } from '../data/categories.ts';
+import { useNotifier } from '../contexts/NotificationContext.tsx';
 
-const InvestmentCard: React.FC<{ investment: Investment }> = ({ investment }) => {
-    const financials = useFinancialsState();
-    const [analysis, setAnalysis] = useState<HadjAnalysis | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleAnalyze = async () => {
-        setIsLoading(true);
-        setError('');
-        setAnalysis(null);
-        try {
-            const result = await analyzeInvestment(investment, financials);
-            if(result) {
-                setAnalysis(result);
-            } else {
-                setError("L'analyse a échoué. Vérifiez votre clé API et la console.");
-            }
-        } catch (e) {
-            setError("Une erreur est survenue lors de l'analyse.");
-            console.error(e);
-        }
-        setIsLoading(false);
-    };
-
-    const recommendationColor = analysis?.isRecommended ? 'text-secondary-500' : 'text-red-500';
-    const recommendationBg = analysis?.isRecommended ? 'bg-secondary-100 dark:bg-secondary-900' : 'bg-red-100 dark:bg-red-900';
-
-    return (
-        <Card title={investment.name}>
-            <div className="space-y-2 text-sm">
-                <p><strong>Montant:</strong> {investment.amount.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</p>
-                <p><strong>Pays:</strong> {investment.country}</p>
-                 <p><strong>Secteur:</strong> {investment.sector}</p>
-                <p><strong>Rendement Attendu:</strong> {investment.expectedReturn}%</p>
-                <p><strong>Risque:</strong> {investment.riskLevel}</p>
-                {investment.shariaComplianceNotes && <p><strong>Notes Conformité:</strong> {investment.shariaComplianceNotes}</p>}
-            </div>
-            <button
-                onClick={handleAnalyze}
-                disabled={isLoading}
-                className="mt-4 w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 disabled:bg-primary-300 flex items-center justify-center"
-            >
-                {isLoading ? <Spinner /> : 'Analyser avec IA'}
-            </button>
-            {error && <p className="text-red-500 mt-2 text-center">{error}</p>}
-            {analysis && (
-                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
-                    <h4 className={`text-lg font-bold text-center p-2 rounded ${recommendationBg} ${recommendationColor}`}>
-                        Recommandation: {analysis.recommendation}
-                    </h4>
-                    <div>
-                        <h5 className="font-semibold">Rentabilité:</h5>
-                        <p className="text-sm">{analysis.profitability}</p>
-                    </div>
-                     <div>
-                        <h5 className="font-semibold">Analyse de Risque:</h5>
-                        <p className="text-sm">{analysis.risk}</p>
-                    </div>
-                    <div>
-                        <h5 className="font-semibold">Règle Hadj & Charia:</h5>
-                        <ul className="list-disc list-inside text-sm">
-                           <li>{analysis.hadjRule.debtToEquity}</li>
-                           <li>{analysis.hadjRule.returnOnInvestment}</li>
-                           <li>{analysis.hadjRule.ribaFree}</li>
-                        </ul>
-                    </div>
-                </div>
-            )}
-        </Card>
-    );
-};
-
-const AddInvestmentForm: React.FC = () => {
-    const { addInvestment } = useFinancialsActions();
-    const { getInvestmentSectors } = useCategories();
-    const [name, setName] = useState('');
-    const [amount, setAmount] = useState('');
-    const [country, setCountry] = useState<InvestmentCountry>('Canada');
-    const [expectedReturn, setExpectedReturn] = useState('');
-    const [duration, setDuration] = useState('');
-    const [riskLevel, setRiskLevel] = useState<'Low' | 'Medium' | 'High'>('Medium');
-    const [sector, setSector] = useState('');
-    const [shariaComplianceNotes, setShariaComplianceNotes] = useState('');
-
-    const investmentSectorsList = getInvestmentSectors();
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const newInvestment = {
-            name,
-            amount: parseFloat(amount),
-            country,
-            expectedReturn: parseFloat(expectedReturn),
-            duration: parseInt(duration),
-            riskLevel,
-            sector,
-            shariaComplianceNotes
-        };
-        addInvestment(newInvestment);
-        // Reset form
-        setName('');
-        setAmount('');
-        setCountry('Canada');
-        setExpectedReturn('');
-        setDuration('');
-        setRiskLevel('Medium');
-        setSector('');
-        setShariaComplianceNotes('');
-    };
-
-    return (
-        <Card title="Ajouter un nouvel investissement">
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium">Nom du projet</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Montant (CAD)</label>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium">Secteur d'activité</label>
-                        <input 
-                            type="text" 
-                            value={sector} 
-                            onChange={e => setSector(e.target.value)} 
-                            placeholder="Ex: Immobilier, Technologie" 
-                            required 
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600"
-                            list="investment-sectors-list"
-                        />
-                        <datalist id="investment-sectors-list">
-                           {investmentSectorsList.map(sec => <option key={sec} value={sec} />)}
-                        </datalist>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Rendement attendu (%)</label>
-                        <input type="number" value={expectedReturn} onChange={e => setExpectedReturn(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Durée (années)</label>
-                        <input type="number" value={duration} onChange={e => setDuration(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Niveau de risque</label>
-                        <select value={riskLevel} onChange={e => setRiskLevel(e.target.value as any)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600">
-                            <option>Low</option>
-                            <option>Medium</option>
-                            <option>High</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Pays</label>
-                        <select value={country} onChange={e => setCountry(e.target.value as any)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600">
-                            <option>Canada</option>
-                            <option>Algeria</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium">Notes sur la conformité (Charia)</label>
-                    <textarea value={shariaComplianceNotes} onChange={e => setShariaComplianceNotes(e.target.value)} rows={3} placeholder="Ex: Sans intérêt (Riba), certifié Halal..." className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-700 dark:border-gray-600" />
-                </div>
-                <div className="flex justify-end">
-                    <button type="submit" className="bg-secondary-600 text-white py-2 px-6 rounded-lg hover:bg-secondary-700">
-                        Ajouter l'investissement
-                    </button>
-                </div>
-            </form>
-        </Card>
-    );
-};
-
+const investmentFields: FormFieldConfig[] = [
+    { name: 'name', label: 'Nom de l\'investissement', type: 'text', required: true },
+    { name: 'amount', label: 'Montant Investi (CAD)', type: 'number', required: true, min: 0, step: '0.01' },
+    { name: 'country', label: 'Pays', type: 'select', required: true, options: ['Canada', 'Algeria', 'Other'] as InvestmentCountry[] },
+    { name: 'sector', label: 'Secteur', type: 'select', required: true, options: investmentSectors },
+    { name: 'expectedReturn', label: 'Rendement Attendu (%)', type: 'number', required: true, min: 0, step: '0.1' },
+    { name: 'duration', label: 'Durée (années)', type: 'number', required: true, min: 1 },
+    { name: 'riskLevel', label: 'Niveau de Risque', type: 'select', required: true, options: ['Low', 'Medium', 'High'] as InvestmentRiskLevel[] },
+    { name: 'shariaComplianceNotes', label: 'Notes de Conformité Charia', type: 'textarea', placeholder: 'ex: Certifié par XYZ, exempt d\'intérêt...' }
+];
 
 const Investments: React.FC = () => {
-    const { investments } = useFinancialsState();
+    const financials = useFinancialsState();
+    const updateFinancials = useFinancialsUpdater();
+    const notifier = useNotifier();
+
+    const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
+    
+    const handleOpenAddModal = () => {
+        setEditingInvestment(null);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEditModal = (investment: Investment) => {
+        setEditingInvestment(investment);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer cet investissement ?')) {
+            const newItems = financials.investments.filter(item => item.id !== id);
+            await updateFinancials({ ...financials, investments: newItems });
+            if (selectedInvestment?.id === id) {
+                setSelectedInvestment(null);
+            }
+            notifier.success("Investissement supprimé.");
+        }
+    };
+
+    const handleSubmit = async (data: Investment) => {
+        try {
+            if (editingInvestment) {
+                const updatedItem = { ...editingInvestment, ...data };
+                const newItems = financials.investments.map(item => item.id === updatedItem.id ? updatedItem : item);
+                await updateFinancials({ ...financials, investments: newItems });
+                notifier.success("Investissement mis à jour.");
+            } else {
+                const newItem = { ...data, id: crypto.randomUUID() };
+                await updateFinancials({ ...financials, investments: [...financials.investments, newItem] });
+                notifier.success("Investissement ajouté.");
+            }
+        } catch (error) {
+            notifier.error("Erreur lors de la sauvegarde.");
+        }
+    };
 
     return (
-        <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {investments.map(inv => (
-                    <InvestmentCard key={inv.id} investment={inv} />
-                ))}
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <Card title="Portefeuille d'Investissements">
+                        <div className="flex justify-end mb-4">
+                            <button onClick={handleOpenAddModal} className="bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700">
+                                Ajouter un Investissement
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            {financials.investments.map(inv => (
+                                <div key={inv.id} className="p-4 rounded-lg border dark:border-gray-700 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                    <div className="flex-grow">
+                                        <h4 className="font-semibold">{inv.name}</h4>
+                                        <p className="text-sm text-gray-500">{inv.sector} - {inv.country}</p>
+                                    </div>
+                                    <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+                                        <div className="text-right">
+                                            <p className="font-bold text-lg">{inv.amount.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}</p>
+                                            <button onClick={() => setSelectedInvestment(inv)} className="text-sm text-primary-600 hover:underline">
+                                                Analyser
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-1">
+                                             <button onClick={() => handleOpenEditModal(inv)} className="p-1 text-gray-500 hover:text-blue-500">✏️</button>
+                                            <button onClick={() => handleDelete(inv.id)} className="p-1 text-gray-500 hover:text-red-500">🗑️</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                             {financials.investments.length === 0 && <p className="text-center text-gray-500 py-4">Vous n'avez pas encore d'investissements.</p>}
+                        </div>
+                    </Card>
+                </div>
+                <div>
+                    {selectedInvestment ? (
+                        <HadjInsights investment={selectedInvestment} onClose={() => setSelectedInvestment(null)} />
+                    ) : (
+                        <Card title="Analyse d'Investissement">
+                            <p className="text-center text-gray-500 p-8">Sélectionnez un investissement pour obtenir une analyse de Hadj.</p>
+                        </Card>
+                    )}
+                </div>
             </div>
-            <div className="mt-8">
-                <AddInvestmentForm />
-            </div>
-        </div>
+             <FormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSubmit={handleSubmit}
+                initialData={editingInvestment}
+                fields={investmentFields}
+                title={editingInvestment ? "Modifier l'Investissement" : "Ajouter un Investissement"}
+            />
+        </>
     );
 };
 

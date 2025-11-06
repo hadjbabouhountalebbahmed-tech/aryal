@@ -1,39 +1,40 @@
-export const expenseCategories: string[] = [
-    'Logement',
-    'Nourriture',
-    'Transport',
-    'Loisirs',
-    'Utilitaires',
-    'Santé',
-    'Éducation',
-    'Vêtements',
-    'Dons',
-    'Factures',
-    'Abonnements',
-    'Autre'
-];
+// data/categories.ts
 
-export const incomeSources: string[] = [
+export const incomeSources = [
     'Salaire',
     'Consulting',
-    'Ventes',
+    'Vente en ligne',
     'Freelance',
+    'Location Immobilière',
     'Dividendes',
-    'Loyer perçu',
-    'Cadeaux',
-    'Autre'
+    'Autres'
 ];
 
-export const investmentSectors: string[] = [
+export const expenseCategories = [
+    'Logement',
+    'Alimentation',
+    'Transport',
+    'Factures & Services',
+    'Santé',
+    'Divertissement',
+    'Achats',
+    'Éducation',
+    'Famille',
+    'Dons & Zakat',
+    'Épargne & Investissement',
+    'Épargne Objectifs',
+    'Remboursement de Dettes',
+    'Autres'
+];
+
+export const investmentSectors = [
     'Immobilier',
     'Technologie',
+    'Finance Islamique (Sukuk)',
+    'Énergie Renouvelable',
     'Santé',
-    'Finance',
-    'Énergie',
-    'Consommation Discrétionnaire',
-    'Consommation de Base',
-    'Industrie',
     'Agriculture',
     'Matières Premières',
-    'Autre'
+    'Start-up',
+    'Autres'
 ];

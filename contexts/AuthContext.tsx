@@ -1,121 +1,142 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-// Fix: added .ts extension
-import { Financials } from '../types.ts';
-import { encryptData, decryptData } from '../services/cryptoService.ts';
-// Fix: added .ts extension
 import { mockData } from '../data/mockData.ts';
+import { encryptData, decryptData } from '../services/cryptoService.ts';
+import { Financials } from '../types.ts';
+import { useNotifier } from './NotificationContext.tsx';
 
-const STORAGE_KEY = 'hadjFinanceData_encrypted';
+const ENCRYPTED_DATA_KEY = 'hadj-finance-data';
 
-interface AuthContextType {
-  isLocked: boolean;
-  hasPasswordBeenSet: boolean;
-  decryptedData: Financials | null;
-  unlock: (password: string) => Promise<void>;
-  lock: () => void;
-  setPassword: (password: string) => Promise<void>;
-  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  resetPasswordAndData: () => Promise<void>;
-  saveEncryptedData: (data: Financials) => Promise<void>;
+export interface AuthContextType {
+    isLocked: boolean;
+    hasPasswordBeenSet: boolean;
+    financials: Financials | null;
+    unlock: (password: string) => Promise<void>;
+    lock: () => void;
+    setPassword: (password: string) => Promise<void>;
+    updateFinancials: (newFinancials: Financials) => Promise<void>;
+    resetPasswordAndData: () => Promise<void>;
+    resetFinancialsToZero: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isLocked, setIsLocked] = useState(true);
-  const [password, setPassword] = useState<string | null>(null);
-  const [decryptedData, setDecryptedData] = useState<Financials | null>(null);
-  const [hasPasswordBeenSet, setHasPasswordBeenSet] = useState(false);
+    const [isLocked, setIsLocked] = useState(true);
+    const [hasPasswordBeenSet, setHasPasswordBeenSet] = useState(false);
+    const [passwordKey, setPasswordKey] = useState<string | null>(null);
+    const [financials, setFinancials] = useState<Financials | null>(null);
+    const notifier = useNotifier();
 
-  useEffect(() => {
-    const storedData = localStorage.getItem(STORAGE_KEY);
-    setHasPasswordBeenSet(!!storedData);
-    // FIX: Removed setIsLocked(!!storedData) to prevent a race condition on first load.
-    // The app should always start locked and let the user unlock or set a password.
-  }, []);
+    useEffect(() => {
+        const encryptedData = localStorage.getItem(ENCRYPTED_DATA_KEY);
+        setHasPasswordBeenSet(!!encryptedData);
+    }, []);
 
-  const unlock = async (pass: string) => {
-    const encryptedJson = localStorage.getItem(STORAGE_KEY);
-    if (!encryptedJson) {
-      throw new Error("Aucune donnée n'a été trouvée.");
-    }
-    const data = await decryptData(encryptedJson, pass);
-    setDecryptedData(data);
-    setPassword(pass);
-    setIsLocked(false);
-  };
+    const saveFinancials = useCallback(async (data: Financials, password: string) => {
+        try {
+            const encryptedString = await encryptData(data, password);
+            localStorage.setItem(ENCRYPTED_DATA_KEY, encryptedString);
+        } catch (error) {
+            console.error("Failed to save data:", error);
+            notifier.error("Une erreur est survenue lors de la sauvegarde des données.");
+            throw error;
+        }
+    }, [notifier]);
 
-  const lock = () => {
-    setPassword(null);
-    setDecryptedData(null);
-    setIsLocked(true);
-  };
+    const unlock = async (password: string) => {
+        const encryptedJson = localStorage.getItem(ENCRYPTED_DATA_KEY);
+        if (!encryptedJson) {
+            throw new Error("Aucune donnée n'a été trouvée.");
+        }
+        try {
+            const decryptedData = await decryptData(encryptedJson, password);
+            setFinancials(decryptedData);
+            setPasswordKey(password);
+            setIsLocked(false);
+            notifier.success("Bienvenue ! Vos données sont déverrouillées.");
+        } catch (error) {
+            throw new Error("Mot de passe incorrect.");
+        }
+    };
 
-  const setPasswordAndEncryptData = async (pass: string, dataToEncrypt: Financials) => {
-      const encryptedString = await encryptData(dataToEncrypt, pass);
-      localStorage.setItem(STORAGE_KEY, encryptedString);
-      setPassword(pass);
-      setDecryptedData(dataToEncrypt);
-      setIsLocked(false);
-      setHasPasswordBeenSet(true);
-  };
+    const lock = () => {
+        setIsLocked(true);
+        setPasswordKey(null);
+        setFinancials(null);
+        // Do not clear financials from state immediately to avoid UI flicker on lock
+    };
 
-  const setPasswordFirstTime = (pass: string) => {
-      return setPasswordAndEncryptData(pass, mockData);
-  };
-  
-  const changePassword = async (oldPassword: string, newPassword: string) => {
-      const currentEncrypted = localStorage.getItem(STORAGE_KEY);
-      if(!currentEncrypted) throw new Error("Impossible de changer le mot de passe, aucune donnée trouvée.");
+    const setPassword = async (password: string) => {
+        if (localStorage.getItem(ENCRYPTED_DATA_KEY)) {
+            throw new Error("Un mot de passe a déjà été défini.");
+        }
+        await saveFinancials(mockData, password);
+        setHasPasswordBeenSet(true);
+        await unlock(password);
+    };
+    
+    const updateFinancials = async (newFinancials: Financials) => {
+        if (!passwordKey) {
+            notifier.error("Session non authentifiée. Impossible de sauvegarder.");
+            throw new Error("Not authenticated");
+        }
+        setFinancials(newFinancials);
+        await saveFinancials(newFinancials, passwordKey);
+    };
 
-      // Verify old password by trying to decrypt
-      const currentData = await decryptData(currentEncrypted, oldPassword);
-      
-      // If successful, re-encrypt with new password
-      await setPasswordAndEncryptData(newPassword, currentData);
-  };
+    const resetPasswordAndData = async () => {
+        localStorage.removeItem(ENCRYPTED_DATA_KEY);
+        setPasswordKey(null);
+        setFinancials(null);
+        setIsLocked(true);
+        setHasPasswordBeenSet(false);
+    };
 
-  const resetPasswordAndData = async () => {
-      localStorage.removeItem(STORAGE_KEY);
-      setPassword(null);
-      setDecryptedData(null);
-      setIsLocked(true);
-      setHasPasswordBeenSet(false);
-  };
+    const resetFinancialsToZero = async () => {
+        if (!financials) {
+            notifier.error("Aucune donnée à réinitialiser.");
+            throw new Error("No financials to reset");
+        }
+    
+        const zeroedFinancials: Financials = {
+            settings: financials.settings, // Keep settings
+            incomes: [],
+            expenses: [],
+            recurringExpenses: [],
+            debts: [],
+            investments: [],
+            loansAndBorrows: [],
+            goals: [],
+            zakatInfo: {
+                goldInGrams: 0,
+                assets: [],
+                debts: [],
+                paymentHistory: [],
+            },
+        };
+    
+        await updateFinancials(zeroedFinancials);
+    };
 
-  const saveEncryptedData = useCallback(async (data: Financials) => {
-    if (password) {
-      try {
-        const encryptedString = await encryptData(data, password);
-        localStorage.setItem(STORAGE_KEY, encryptedString);
-      } catch (error) {
-        console.error("Failed to save and encrypt data:", error);
-      }
-    }
-  }, [password]);
-
-
-  return (
-    <AuthContext.Provider value={{ 
-        isLocked, 
-        hasPasswordBeenSet, 
-        decryptedData, 
-        unlock, 
-        lock, 
-        setPassword: setPasswordFirstTime,
-        changePassword,
+    const value: AuthContextType = {
+        isLocked,
+        hasPasswordBeenSet,
+        financials,
+        unlock,
+        lock,
+        setPassword,
+        updateFinancials,
         resetPasswordAndData,
-        saveEncryptedData,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+        resetFinancialsToZero,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };
