@@ -1,73 +1,82 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="fr" class="h-full">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Massistant Financier | Hadj Finance</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        'primary': {
-                            '50': '#effffb',
-                            '100': '#c6fef3',
-                            '200': '#92fae6',
-                            '300': '#5ef7d8',
-                            '400': '#2deac7',
-                            '500': '#12d1b2',
-                            '600': '#07aa94',
-                            '700': '#058778',
-                            '800': '#076c61',
-                            '900': '#09594f',
-                            '950': '#00332d',
-                        },
-                        'secondary': {
-                            '50': '#fffbeb',
-                            '100': '#fef3c7',
-                            '200': '#fde68a',
-                            '300': '#fcd34d',
-                            '400': '#fbbf24',
-                            '500': '#f59e0b',
-                            '600': '#d97706',
-                            '700': '#b45309',
-                            '800': '#92400e',
-                            '900': '#78350f',
-                            '950': '#451a03',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
-    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
-    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
-    "immer": "https://aistudiocdn.com/immer@^10.2.0",
-    "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
-    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0"
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Massistant Financier | Hadj Finance</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#effffb',
+              100: '#c6fef3',
+              200: '#92fae6',
+              300: '#5ef7d8',
+              400: '#2deac7',
+              500: '#12d1b2',
+              600: '#07aa94',
+              700: '#058778',
+              800: '#076c61',
+              900: '#09594f',
+              950: '#00332d',
+            },
+            secondary: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              200: '#fde68a',
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              800: '#92400e',
+              900: '#78350f',
+              950: '#451a03',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Import map for React + libs -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react/": "https://aistudiocdn.com/react@^19.2.0/",
+      "react": "https://aistudiocdn.com/react@^19.2.0",
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+      "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+      "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+      "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
+      "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
+      "immer": "https://aistudiocdn.com/immer@^10.2.0",
+      "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
+      "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0"
+    }
   }
-}
-</script>
+  </script>
 </head>
+
 <body class="bg-gray-100 dark:bg-gray-900 h-full">
-    <div id="root" class="h-full"></div>
-    <script type="module" src="index.tsx"></script>
+  <div id="root" class="h-full"></div>
+
+  <!-- ⚠️ IMPORTANT : chemins relatifs (pas de / au début) -->
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
